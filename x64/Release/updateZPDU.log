@@ -1,38 +1,18 @@
-﻿  stdafx.cpp
-  aes.cpp
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.cpp(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
-  cJSON.cpp
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\cJSON.cpp(28): warning C4603: “_CRT_SECURE_NO_DEPRECATE”: 未定义宏或在预编译头使用后定义发生改变
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\cJSON.cpp(28): message : 将宏添加到预编译头中，而不是在此处定义
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\cJSON.cpp(39): message : 使用预编译头
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\cJSON.cpp(53,18): warning C4193: #pragma warning(pop): 没有匹配的“#pragma warning(push)”
-  md5.cpp
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\md5.cpp(240,44): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-  ping.cpp
-  sha256.cpp
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(151,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(152,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(153,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(154,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(155,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(156,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(157,16): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\sha256.cpp(39,9): warning C4101: “ret”: 未引用的局部变量
-  updateZPDU.cpp
-  updateZPDUDlg.cpp
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(340,68): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(415,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(472,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(754,24): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(768,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(801,34): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(815,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1141,107): warning C4267: “参数”: 从“size_t”转换到“uint32_t”，可能丢失数据
-    正在创建库 F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.lib 和对象 F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.exp
+﻿  updateZPDUDlg.cpp
+E:\vs project\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(341,68): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(416,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(473,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(531,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(813,24): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(827,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(860,34): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(874,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1201,107): warning C4267: “参数”: 从“size_t”转换到“uint32_t”，可能丢失数据
+    正在创建库 E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.lib 和对象 E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.exp
   正在生成代码
-  Previous IPDB not found, fall back to full compilation.
-  All 388 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  2 of 389 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
   已完成代码的生成
-  updateZPDU.vcxproj -> F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.exe
+  updateZPDU.vcxproj -> E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.exe

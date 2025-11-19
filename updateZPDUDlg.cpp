@@ -21,23 +21,14 @@
 #define new DEBUG_NEW
 #endif
 
-//#define TEST_FILE "/home/lujie/work/zpdu/v20-20221104/ota/标准/update_app.tar.bz2"
-//#define UP_FILE "/tmp/update.tar.bz2" //1.2版本
-#define UP_FILE "/tmp/update.tar"
-//#define KILLALL_APP "echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall start master order web alarm chart sensor timing  modbus modbus_tcp releasespace snmpd screen sshd"
-//#define UPDATE "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox chmod 777 update;./busybox tar -Jxf system.tar.xz;./busybox sh update  -ukdr;./busybox sync;./busybox flash_eraseall /dev/mtd1;./busybox reboot -f"
-//-u uboot引导 -k kernel -d device-tree 系统 -r app 应用
-#define KILLALL_APP ""//"echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall master  web alarm chart sensor timing modbus modbus_tcp releasespace snmpd screen sshd updateserver_old"
-//#define UPDATE "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -ukdrz;./busybox sync;./busybox flash_eraseall /dev/mtd1;#./busybox reboot -f"
-//char update1[] = "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -cz";//1.2
-char update1[] = "";//"busybox rm -rf /tmp/update;openssl des3 -d -pbkdf2 -k xng93eraZ0RnMYyAWWKnc4LgesPypL4R4NFFb2Fg7KAhv36dJWqoHuxVivrHMmnovCcQuTd60isdf5NyoTgknsviVU5xM07i72cD -salt -in /tmp/update.tar.bz2 | tar -jxf - -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -cz";
-char update2[] = "";//";./busybox sync;";
-char update3[1024];
-//u booloader 
-//kd kernel 
-//r app
-//#define SERVER_IP "192.168.10.164" 
-//#define AES_KEY "zpduadminadmin"
+#define TEST_FILE "/tmp/update.tar.bz2"
+#define UP_FILE "/tmp/update.tar.bz2"
+//#define KILLALL_APP "#echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall master order web alarm chart sensor timing  modbus modbus_tcp releasespace snmpd screen sshd"
+#define KILLALL_APP "echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall master order web alarm chart sensor timing  modbus modbus_tcp releasespace snmpd screen"
+//#define UPDATE "#busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -cz"
+#define UPDATE "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -czukdr;./busybox sync;"
+#define SERVER_IP "192.168.10.240" 
+#define AES_KEY "zpduadminadmin"
 CString gFilePath;
 char gIp[255];
 HANDLE gMainThreads;
@@ -58,6 +49,7 @@ typedef struct client_info
 	char update_file[1024]; //保存文件名
 	FILE *file;
 	int size;
+	char md5[64]; //校验码
 	char hash[257]; //校验码
 	unsigned char aes_cbc_key[64];
 	unsigned char cipher[30*1024*1024];
@@ -151,8 +143,8 @@ static int read_file(FILE *fp, unsigned char *cipher)
 
 static int encrypt(client_info* info)
 {
-	//int ret = aes_encrypt_fp(info->file, info->cipher);
-	int ret = read_file(info->file, info->cipher);
+	int ret = aes_encrypt_fp(info->file, info->cipher);
+	//int ret = read_file(info->file, info->cipher);
 	if (ret < 0)
 	{
 		printf("%s aes_encrypt_fp error\n", __func__);
@@ -167,26 +159,25 @@ static int encrypt(client_info* info)
 	info->size = ret;
 	uint8_t temp[SHA256_DIGESTLEN];
 	compute_sha(info->cipher, ret, temp);
-	print_as_hex_temp(temp, sizeof(temp),(char*) info->hash);
-	
+	print_as_hex_temp(temp, sizeof(temp), (char*)info->hash);
+
 	return 0;
 }
 
 static int get_file(client_info* info)
 {
 	//strcpy(info->pre_update, KILLALL_APP);
-	strcpy(info->pre_update, "1");
+	//strcpy(info->pre_update, "1");
 	
 
-	//strcpy(info->update, update3);
-	strcpy(info->update, "");
-
+	strcpy(info->pre_update, KILLALL_APP);
+	strcpy(info->update, UPDATE);
 	strcpy(info->update_file, UP_FILE);
 	//strcpy(info->name, TEST_FILE);
 	const char* sstr;
 	char temp[1024];
 	memset(temp, 0, sizeof(char) * 1024);
-	::wsprintfA(temp, "%ls" , (LPCTSTR)gFilePath);
+	::wsprintfA(temp, "%ls", (LPCTSTR)gFilePath);
 	sstr = temp;
 	strcpy(info->name, sstr);
 	info->file = fopen(info->name, "rb");
@@ -224,6 +215,7 @@ static int say_hello(client_info* info)
 	cJSON* name = NULL;
 	cJSON* size = NULL;
 	cJSON* hash = NULL;
+	//cJSON* md5 = NULL;
 
 	if (!(func = cJSON_CreateNumber(0)))
 	{
@@ -334,6 +326,15 @@ static int say_hello(client_info* info)
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
 	}
+	//if (!cJSON_AddItemToObject(obj, "md5", md5))
+	//{
+	//	printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
+	//	//exit(-1);
+	//	SetWindowTextA(hText, "md5 error !!!");
+	//	g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+	//	::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+	//	return -1;
+	//}
 	char* data = cJSON_Print(obj);
 	printf("%s\n", data);
 	unsigned char* c;
@@ -485,6 +486,64 @@ static int check_hash(client_info *info)
 	cJSON_Delete(obj);
 	free(c);
 	return 0;
+}
+
+static int check_md5(client_info* info)
+{
+
+	cJSON* func = NULL;
+
+	cJSON* obj = cJSON_CreateObject();
+	if (obj == NULL)
+	{
+		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
+		//exit(-1);
+		SetWindowTextA(hText, "json error !!!");
+		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+		return -1;
+	}
+
+	if (!(func = cJSON_CreateNumber(1)))
+	{
+		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
+		//exit(-1);
+		SetWindowTextA(hText, "json error !!!");
+		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+		return -1;
+	}
+
+	if (!cJSON_AddItemToObject(obj, "func", func))
+	{
+		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
+		//exit(-1);
+		SetWindowTextA(hText, "func json error !!!");
+		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+		return -1;
+	}
+
+
+	char* data = cJSON_Print(obj);
+	printf("%s\n", data);
+	unsigned char* c;
+	int ret = aes_encrypt_buff((unsigned char*)data, strlen(data), &c);
+	if (send(info->ctrl_sock, (const char*)c, ret, MSG_OOB) == SOCKET_ERROR)
+	{
+		printf("send get md5 error\n");
+		printf("%s %d exit\n", __func__, __LINE__);
+		//exit(-1);
+		SetWindowTextA(hText, "send get md5 error !!!");
+		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+		return -1;
+	}
+
+	cJSON_free(data);
+	cJSON_Delete(obj);
+	free(c);
+
 }
 
 static int recv_data_(client_info* info)
@@ -968,7 +1027,7 @@ bool CupdateZPDUDlg::etLocalAdaptersInfo()
 void CupdateZPDUDlg::fun()
 {
 	
-	memset(update3, 0, 1024);
+	/*memset(update3, 0, 1024);
 	strcat(update3, update1);
 	if (m_boot)
 	{
@@ -982,7 +1041,7 @@ void CupdateZPDUDlg::fun()
 	{
 		strcat(update3, "r");
 	}
-	strcat(update3, update2);
+	strcat(update3, update2);*/
 }
 
 CupdateZPDUDlg::CupdateZPDUDlg(CWnd* pParent /*=NULL*/)
@@ -1136,12 +1195,19 @@ unsigned WINAPI MainThread(void* param)
 	//char key[2048] = "zpdu";
 	//strcat(key, name);
 	//strcat(key, password);
+
 	unsigned char temp[16];
 	char temp1[32+1];
 	compute_pbkdf2((uint8_t*)password, strlen(password), (uint8_t*)password, strlen(password), 1000, 16, temp);
 	print_as_hex_temp(temp, sizeof(temp), temp1); 
 	temp1[31] = '\0';
 	sprintf((char *)info->aes_cbc_key, "%s%s", name, temp1);
+	printf("aes cbc key: %s\n", info->aes_cbc_key);
+	//if (Compute_string_md5((unsigned char*)AES_KEY, strlen(AES_KEY), (char*)info->aes_cbc_key) < 0)
+	//{
+	//	printf("%s Compute_string_md5 error\n", __func__);
+	//	return -1;
+	//}
 	//printf("aes cbc key: %s\n", info->aes_cbc_key);
 	aes_init((const void *)info->aes_cbc_key);
 
@@ -1200,7 +1266,7 @@ void CupdateZPDUDlg::OnBnClickedUpdate()
 void CupdateZPDUDlg::OnBnClickedChooseBtn()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CFileDialog FDlg(TRUE, _T(".tar"), NULL, OFN_HIDEREADONLY, _T("Upgrade file(*.tar)|*.tar||"));
+	CFileDialog FDlg(TRUE, _T(".tar.bz2"), NULL, OFN_HIDEREADONLY, _T("Upgrade file(*.tar.bz2)|*.tar.bz2||"));
 
 	if (FDlg.DoModal() == IDOK)
 	{
