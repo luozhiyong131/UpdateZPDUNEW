@@ -1,0 +1,33 @@
+﻿  stdafx.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+  aes.cpp
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.cpp(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+  cJSON.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+  md5.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+  ping.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\ping.cpp(60,25): warning C4996: 'inet_addr': Use inet_pton() or InetPton() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\ping.cpp(202,16): warning C4996: 'gethostbyname': Use getaddrinfo() or GetAddrInfoW() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\ping.cpp(210,39): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  sha256.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(151,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(152,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(153,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(154,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(155,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(156,22): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\pbkdf2_sha256.h(157,16): warning C4244: “=”: 从“uint64_t”转换到“uint8_t”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\sha256.cpp(23,3): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\sha256.cpp(40,16): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\sha256.cpp(39,9): warning C4101: “ret”: 未引用的局部变量
+  updateZPDU.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+  updateZPDUDlg.cpp
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Tools\MSVC\14.26.28801\atlmfc\include\afxwin1.inl(75,2): warning C4530: 使用了 C++ 异常处理程序，但未启用展开语义。请指定 /EHsc
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+LINK : fatal error LNK1181: 无法打开输入文件“vld.lib”

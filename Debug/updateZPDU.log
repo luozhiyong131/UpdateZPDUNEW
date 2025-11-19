@@ -1,0 +1,4 @@
+﻿  updateZPDUDlg.cpp
+e:\updatezpduv0.1\updatezpdu\aes.h : warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+  updateZPDU.vcxproj -> E:\updateZPDUV0.1\Debug\updateZPDU.exe
+  updateZPDU.vcxproj -> E:\updateZPDUV0.1\Debug\updateZPDU.pdb (Partial PDB)
