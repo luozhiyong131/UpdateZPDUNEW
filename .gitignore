@@ -1,0 +1,6 @@
+/Debug/
+/Release/
+*.pdb
+*.ilk
+*.obj
+*.idb

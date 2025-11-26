@@ -35,6 +35,11 @@ public:
 	afx_msg void OnBnClickedUpdate();
 	afx_msg void OnBnClickedChooseBtn();
 	bool etLocalAdaptersInfo();
+	bool etLocalAdaptersInfoEnd(); 
+	void hideControl();
+	void showControl();
+	bool IsValidIPv4(const CString& ip);
+	bool IsValidIPv6(const CString& ip);
 	void fun();
 	
 	CComboBox m_ComboBox;
@@ -47,9 +52,20 @@ public:
 	int m_boot;
 	int m_kernel;
 	int m_app;
+	int m_batch;
 	afx_msg void OnCbnDropdownCombo1();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg LRESULT OnMyMessage(WPARAM w ,LPARAM l);
+	afx_msg LRESULT OnMyProgressMessage(WPARAM w, LPARAM l);
 	afx_msg LRESULT OnMyStartTimerMessage(WPARAM w, LPARAM l);
 	afx_msg void OnCbnSelchangeCombo1();
+	CComboBox m_method;
+	afx_msg void OnCbnSelchangeCombo2();
+	CComboBox m_endIPAddress;
+	afx_msg void OnCbnSelchangeCombo3();
+	afx_msg void OnCbnDropdownCombo3();
+	afx_msg LRESULT OnUpdateEdit(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUpdateErrorEdit(WPARAM wParam, LPARAM lParam);
+	CEdit m_editOK;
+	CEdit m_editError;
 };

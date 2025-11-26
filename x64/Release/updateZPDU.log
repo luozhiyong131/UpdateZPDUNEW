@@ -1,18 +1,27 @@
 ﻿  updateZPDUDlg.cpp
-E:\vs project\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(341,68): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(416,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(473,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(531,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(813,24): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(827,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(860,34): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(874,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
-E:\vs project\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1201,107): warning C4267: “参数”: 从“size_t”转换到“uint32_t”，可能丢失数据
-    正在创建库 E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.lib 和对象 E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.exp
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\aes.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(500,68): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(615,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(704,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(794,67): warning C4267: “参数”: 从“size_t”转换到“unsigned int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1199,24): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1213,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1246,34): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1260,26): warning C4267: “=”: 从“size_t”转换到“int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1676,29): warning C4267: “初始化”: 从“size_t”转换到“int”，可能丢失数据
+F:\GitHub\updateZPDU\updateZPDUV0.1\updateZPDU\updateZPDUDlg.cpp(1751,108): warning C4267: “参数”: 从“size_t”转换到“uint32_t”，可能丢失数据
+    正在创建库 F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.lib 和对象 F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.exp
   正在生成代码
-  2 of 389 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
+  5 of 511 functions ( 1.0%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
     1 functions had inline decision re-evaluated but remain unchanged
   已完成代码的生成
-  updateZPDU.vcxproj -> E:\vs project\updateZPDUV0.1\x64\Release\updateZPDU.exe
+aes.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+cJSON.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+md5.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+ping.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+sha256.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+stdafx.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+updateZPDU.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+updateZPDUDlg.obj : warning LNK4020: “f:\github\updatezpdu\updatezpduv0.1\updatezpdu\x64\release\vc142.pdb”中的类型记录已损坏；某些符号和类型可能无法从调试器中访问
+  updateZPDU.vcxproj -> F:\GitHub\updateZPDU\updateZPDUV0.1\x64\Release\updateZPDU.exe

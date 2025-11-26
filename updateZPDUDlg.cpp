@@ -9,13 +9,19 @@
 #include "common.h"
 #include "sha256.h"
 #include "ping.h"
-
+//#include <WS2tcpip.h> // InetPton
+#include<vector>
+#include<string>
+#include <sstream>
 #include <IPHlpApi.h>
 #pragma comment(lib,"IPHlpApi.lib")
 
 
 #define WM_MY_MESSAGE   ( WM_USER + 0x100)
 #define WM_MY_START_TIME_MESSAGE   ( WM_USER + 0x101)
+#define WM_MY_PROGESS_MESSAGE   ( WM_USER + 0x102)
+#define WM_UPDATE_EDIT (WM_USER + 0x103)
+#define WM_UPDATE_ERROR_EDIT (WM_USER + 0x105)
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -26,16 +32,20 @@
 //#define KILLALL_APP "#echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall master order web alarm chart sensor timing  modbus modbus_tcp releasespace snmpd screen sshd"
 #define KILLALL_APP "echo Performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor;touch /tmp/.update_now;killall master order web alarm chart sensor timing  modbus modbus_tcp releasespace snmpd screen"
 //#define UPDATE "#busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -cz"
-#define UPDATE "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -czukdr;./busybox sync;"
+#define UPDATE "busybox rm -rf /tmp/update;tar -jxf /tmp/update.tar.bz2 -C /tmp;cd /tmp/update;./busybox rm /tmp/update.tar.bz2;./busybox chmod 777 update;./busybox sh update -zukdr;./busybox sync;"
 #define SERVER_IP "192.168.10.240" 
 #define AES_KEY "zpduadminadmin"
 CString gFilePath;
-char gIp[255];
+char gStartIp[255];
+char gEndIp[255];
+std::vector<CString> gVecIP;
+int gIndex;
 HANDLE gMainThreads;
 CString gName;
 CString gPassword;
 HWND hText;
 CProgressCtrl* g_Prog;
+CProgressCtrl* g_TotalProg;
 HWND gHwnd;
 int size;
 char* gbuff;
@@ -70,7 +80,15 @@ static int open_ctrl_sock(client_info* info)
 		printf("ctrl sock,%d", WSAGetLastError());
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "ctrl sock error !!!");
+		CString msg;
+		msg.Format(_T("ctrl sock error!!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE , (WPARAM)0 , (LPARAM)0);
 		return -1;
@@ -78,14 +96,24 @@ static int open_ctrl_sock(client_info* info)
 
 	SOCKADDR_IN addrSrv;
 	addrSrv.sin_family = AF_INET;
-	addrSrv.sin_addr.s_addr = inet_addr(gIp);
+	char buf[255];
+	strncpy_s(buf, CT2A(gVecIP[gIndex]), sizeof(buf));
+	addrSrv.sin_addr.s_addr = inet_addr(buf);
 	addrSrv.sin_port = htons(30964);
 
 	if (connect(info->ctrl_sock, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) == INVALID_SOCKET)
 	{
 		printf("connect error,%d", WSAGetLastError());
 		printf("%s %d exit\n", __func__, __LINE__);
-		SetWindowTextA(hText, "connect error !!!");
+		CString msg;
+		msg.Format(_T("connect error!!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg+ _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -102,6 +130,7 @@ static int open_file_sock(client_info* info)
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
 		SetWindowTextA(hText, "file sock init error !!!");
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -109,7 +138,9 @@ static int open_file_sock(client_info* info)
 
 	SOCKADDR_IN addrSrv;
 	addrSrv.sin_family = AF_INET;
-	addrSrv.sin_addr.s_addr = inet_addr(gIp);
+	char buf[255];
+	strncpy_s(buf, CT2A(gVecIP[gIndex]), sizeof(buf));
+	addrSrv.sin_addr.s_addr = inet_addr(buf);
 	addrSrv.sin_port = htons(30965);
 
 	if (connect(info->file_sock, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) == INVALID_SOCKET)
@@ -117,7 +148,15 @@ static int open_file_sock(client_info* info)
 		printf("connect error,%d\n", WSAGetLastError());
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "connect error !!!");
+		CString msg;
+		msg.Format(_T("connect error!!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -150,7 +189,15 @@ static int encrypt(client_info* info)
 		printf("%s aes_encrypt_fp error\n", __func__);
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "aes_encrypt_fp error !!!");
+		CString msg;
+		msg.Format(_T("aes_encrypt_fp error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -186,7 +233,15 @@ static int get_file(client_info* info)
 		//perror(TEST_FILE);
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "fopen file error !!!");
+		CString msg;
+		msg.Format(_T("fopen file error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -203,7 +258,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateObject error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateObject error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -221,7 +284,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateNumber error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateNumber error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -230,7 +301,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateString error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateString error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -239,7 +318,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateString error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateString error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -248,7 +335,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateString error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateString error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -257,7 +352,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateNumber error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateString error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -266,7 +369,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "cJSON_CreateString error !!!");
+		CString msg;
+		msg.Format(_T("cJSON_CreateString error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -276,7 +387,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "func error !!!");
+		CString msg;
+		msg.Format(_T("func error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -285,7 +404,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "pre_update error !!!");
+		CString msg;
+		msg.Format(_T("pre_update error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255,0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -294,7 +421,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "update error !!!");
+		CString msg;
+		msg.Format(_T("update error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -303,7 +438,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "name error !!!");
+		CString msg;
+		msg.Format(_T("name error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -312,7 +455,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "size error !!!");
+		CString msg;
+		msg.Format(_T("size error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -321,7 +472,15 @@ static int say_hello(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "hash error !!!");
+		CString msg;
+		msg.Format(_T("hash error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -344,7 +503,15 @@ static int say_hello(client_info* info)
 		perror("say hello error");
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "say hello error !!!");
+		CString msg;
+		msg.Format(_T("say hello error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -366,7 +533,15 @@ static int start_trans(client_info* info)
 		printf("send file error\n");
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "send file error !!!");
+		CString msg;
+		msg.Format(_T("send file error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -382,8 +557,16 @@ static int update_now(client_info* info)
 	if (obj == NULL)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
+		CString msg;
+		msg.Format(_T("func json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
 		//exit(-1);
-		SetWindowTextA(hText, "func json error !!!");
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -393,7 +576,15 @@ static int update_now(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -403,7 +594,15 @@ static int update_now(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "func json error !!!");
+		CString msg;
+		msg.Format(_T("func json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -419,7 +618,15 @@ static int update_now(client_info* info)
 		printf("send update error\n");
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "send update error !!!");
+		CString msg;
+		msg.Format(_T("send update error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -440,7 +647,15 @@ static int check_hash(client_info *info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -450,7 +665,15 @@ static int check_hash(client_info *info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -460,7 +683,15 @@ static int check_hash(client_info *info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "func json error !!!");
+		CString msg;
+		msg.Format(_T("func json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return - 1;
@@ -476,7 +707,15 @@ static int check_hash(client_info *info)
 		printf("send get hash error\n");
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "send get hash error !!!");
+		CString msg;
+		msg.Format(_T("send get hash error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -498,7 +737,15 @@ static int check_md5(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -508,7 +755,15 @@ static int check_md5(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -518,7 +773,15 @@ static int check_md5(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "func json error !!!");
+		CString msg;
+		msg.Format(_T("func json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -534,7 +797,15 @@ static int check_md5(client_info* info)
 		printf("send get md5 error\n");
 		printf("%s %d exit\n", __func__, __LINE__);
 		//exit(-1);
-		SetWindowTextA(hText, "send get md5 error !!!");
+		CString msg;
+		msg.Format(_T("send get md5 error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -564,16 +835,33 @@ static int recv_data_(client_info* info)
 	{
 		printf("Disconnect\n");//网络错误
 		printf("%s %d exit\n", __func__, __LINE__);
-		SetWindowTextA(hText, "Disconnect !!!");
-		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+		CString msg;
+		msg.Format(_T("Disconnect !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		return -1;
 	}
 	else if (ret == SOCKET_ERROR)
 	{
 		//printf("recv() fail:%d\n", WSAGetLastError());
 		//exit(-1);//网络错误
-		SetWindowTextA(hText, "network error !!!");
+		CString msg;
+		msg.Format(_T("network error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
+		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		return -1;
@@ -598,7 +886,15 @@ static int recv_data_(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		if (gbuff) {
@@ -614,7 +910,15 @@ static int recv_data_(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "func json error !!!");
+		CString msg;
+		msg.Format(_T("func json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		if (gbuff) {
@@ -629,7 +933,15 @@ static int recv_data_(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "status json error !!!");
+		CString msg;
+		msg.Format(_T("status json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		if (gbuff) {
@@ -644,7 +956,15 @@ static int recv_data_(client_info* info)
 	{
 		printf("%s %d %s", __func__, __LINE__, cJSON_GetErrorPtr());
 		//exit(-1);
-		SetWindowTextA(hText, "json error !!!");
+		CString msg;
+		msg.Format(_T("json error !!! IP: %s"), gVecIP[gIndex]);
+		CT2A pszA(msg);   // 转成 ANSI
+		LPCSTR pStr = pszA;
+		SetWindowTextA(hText, pStr);
+
+		CString* str = new CString(msg + _T("\r\n"));
+		::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		if (gbuff) {
@@ -665,7 +985,15 @@ static int recv_data_(client_info* info)
 		}
 		else {
 			printf("hello error\n");//握手失败
-			SetWindowTextA(hText, "hello error !!!");
+			CString msg;
+			msg.Format(_T("hello error !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		}
@@ -676,9 +1004,26 @@ static int recv_data_(client_info* info)
 			update_now(info);
 			closesocket(info->file_sock);
 			printf("update now\n");
+			CString msg;
+			msg.Format(_T("update now !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_EDIT, 0, (LPARAM)str);
+
 		}
 		else if ((int)cJSON_GetNumberValue(status) == -1) {
-			SetWindowTextA(hText, "update error !!!");//过程
+			CString msg;
+			msg.Format(_T("update error !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 		}
@@ -695,8 +1040,17 @@ static int recv_data_(client_info* info)
 				printf("update ok\n");
 			}
 			printf("%s %d exit\n", __func__, __LINE__);
-			SetWindowTextA(hText, "Wait for decompression !!!");//过程
+			CString msg;
+			msg.Format(_T("Wait for decompression !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_EDIT, 0, (LPARAM)str);
+
 			::SendMessage(gHwnd, WM_MY_START_TIME_MESSAGE, (WPARAM)0, (LPARAM)0);
+
 			g_Prog->SetPos(50);
 			if (gbuff) {
 				free(gbuff);
@@ -715,7 +1069,15 @@ static int recv_data_(client_info* info)
 		{
 			printf("Authentication failed\n");//认证失败
 			printf("%s %d exit\n", __func__, __LINE__);
-			SetWindowTextA(hText, "Authentication failed !!!");//过程
+			CString msg;
+			msg.Format(_T("Authentication failed !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 			if (gbuff) {
@@ -732,7 +1094,15 @@ static int recv_data_(client_info* info)
 		ret = (int)cJSON_GetNumberValue(status);
 		switch (ret) {
 		case 0: {
-			SetWindowTextA(hText, "Update finish,decompression OK!!!");//过程
+			CString msg;
+			msg.Format(_T("Update finish,decompression OK !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_EDIT, 0, (LPARAM)str);
+
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 			if (gbuff) {
 				free(gbuff);
@@ -746,7 +1116,15 @@ static int recv_data_(client_info* info)
 			return 1;
 		}
 		case 1: {
-			SetWindowTextA(hText, "Version is lower!!!");//过程
+			CString msg;
+			msg.Format(_T("Version is lower !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 			if (gbuff) {
@@ -761,7 +1139,15 @@ static int recv_data_(client_info* info)
 			return -1;
 		}
 		case 2: {
-			SetWindowTextA(hText, "Update failed , please try again!!!");//过程
+			CString msg;
+			msg.Format(_T("Update failed , please try again !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
 			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
 			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 			if (gbuff) {
@@ -1024,6 +1410,119 @@ bool CupdateZPDUDlg::etLocalAdaptersInfo()
 	return TRUE;
 }
 
+
+bool CupdateZPDUDlg::etLocalAdaptersInfoEnd()
+{
+	//IP_ADAPTER_INFO结构体
+	m_endIPAddress.ResetContent();
+	PIP_ADAPTER_INFO pIpAdapterInfo = NULL;
+	pIpAdapterInfo = new IP_ADAPTER_INFO;
+	bool flag = false;
+
+	//结构体大小
+	unsigned long ulSize = sizeof(IP_ADAPTER_INFO);
+
+	//获取适配器信息
+	int nRet = GetAdaptersInfo(pIpAdapterInfo, &ulSize);
+
+	if (ERROR_BUFFER_OVERFLOW == nRet)
+	{
+		//空间不足，删除之前分配的空间
+		delete[]pIpAdapterInfo;
+
+		//重新分配大小
+		pIpAdapterInfo = (PIP_ADAPTER_INFO) new BYTE[ulSize];
+		flag = true;
+
+		//获取适配器信息
+		nRet = GetAdaptersInfo(pIpAdapterInfo, &ulSize);
+
+		//获取失败
+		if (ERROR_SUCCESS != nRet)
+		{
+			if (pIpAdapterInfo != NULL)
+			{
+				delete[]pIpAdapterInfo;
+			}
+			return FALSE;
+		}
+	}
+
+	//MAC 地址信息
+	char szMacAddr[20];
+	//赋值指针
+	PIP_ADAPTER_INFO pIterater = pIpAdapterInfo;
+	while (pIterater)
+	{
+		//cout<<"网卡名称："<<pIterater->AdapterName<<endl;
+
+		//cout<<"网卡描述："<<pIterater->Description<<endl;
+
+		sprintf_s(szMacAddr, 20, "%02X-%02X-%02X-%02X-%02X-%02X",
+			pIterater->Address[0],
+			pIterater->Address[1],
+			pIterater->Address[2],
+			pIterater->Address[3],
+			pIterater->Address[4],
+			pIterater->Address[5]);
+
+		//cout<<"MAC 地址："<<szMacAddr<<endl;
+
+		//cout<<"IP地址列表："<<endl<<endl;
+
+		//指向IP地址列表
+		PIP_ADDR_STRING pIpAddr = &pIterater->IpAddressList;
+		while (pIpAddr)
+		{
+			//cout << "IP地址：  " << pIpAddr->IpAddress.String << endl;
+			CString temp(pIpAddr->IpAddress.String);
+			if (temp != "0.0.0.0") {
+				char netid[64];
+				if (ip_netmask_to_NSID(pIpAddr->IpAddress.String, pIpAddr->IpMask.String, netid, 64))
+				{
+					netid[strlen(netid) - 1] = '\0';
+					CString temp(netid);
+					m_endIPAddress.AddString(temp);
+				}
+			}
+
+			//cout<<"子网掩码："<<pIpAddr->IpMask.String<<endl;
+
+			//指向网关列表
+			PIP_ADDR_STRING pGateAwayList = &pIterater->GatewayList;
+			while (pGateAwayList)
+			{
+				//cout<<"网关：    "<<pGateAwayList->IpAddress.String<<endl;
+
+				pGateAwayList = pGateAwayList->Next;
+			}
+
+			pIpAddr = pIpAddr->Next;
+		}
+		//cout<<endl<<"--------------------------------------------------"<<endl;
+
+		pIterater = pIterater->Next;
+	}
+	//清理
+	if (flag) {
+		if (pIpAdapterInfo)
+		{
+			delete[]pIpAdapterInfo;
+			pIpAdapterInfo = NULL;
+		}
+	}
+	else
+	{
+		if (pIpAdapterInfo)
+		{
+			delete pIpAdapterInfo;
+			pIpAdapterInfo = NULL;
+		}
+	}
+
+	return TRUE;
+}
+
 void CupdateZPDUDlg::fun()
 {
 	
@@ -1057,6 +1556,10 @@ void CupdateZPDUDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK1, m_BootLoader);
 	DDX_Control(pDX, IDC_CHECK2, m_Kernel);
 	DDX_Control(pDX, IDC_CHECK3, m_App);
+	DDX_Control(pDX, IDC_COMBO2, m_method);
+	DDX_Control(pDX, IDC_COMBO3, m_endIPAddress);
+	DDX_Control(pDX, IDC_EDIT1, m_editOK);
+	DDX_Control(pDX, IDC_EDIT2, m_editError);
 }
 
 BEGIN_MESSAGE_MAP(CupdateZPDUDlg, CDialogEx)
@@ -1067,11 +1570,19 @@ BEGIN_MESSAGE_MAP(CupdateZPDUDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHECK1, &CupdateZPDUDlg::OnBnClickedCheck1)
 	ON_BN_CLICKED(IDC_CHECK2, &CupdateZPDUDlg::OnBnClickedCheck2)
 	ON_BN_CLICKED(IDC_CHECK3, &CupdateZPDUDlg::OnBnClickedCheck3)
-	ON_CBN_DROPDOWN(IDC_COMBO1, &CupdateZPDUDlg::OnCbnDropdownCombo1)
 	ON_WM_TIMER()
 	ON_MESSAGE(WM_MY_MESSAGE , &CupdateZPDUDlg::OnMyMessage)
+	ON_MESSAGE(WM_MY_PROGESS_MESSAGE, &CupdateZPDUDlg::OnMyProgressMessage)
 	ON_MESSAGE(WM_MY_START_TIME_MESSAGE, &CupdateZPDUDlg::OnMyStartTimerMessage)
+	ON_CBN_DROPDOWN(IDC_COMBO1, &CupdateZPDUDlg::OnCbnDropdownCombo1)
 	ON_CBN_SELCHANGE(IDC_COMBO1, &CupdateZPDUDlg::OnCbnSelchangeCombo1)
+	ON_CBN_SELCHANGE(IDC_COMBO2, &CupdateZPDUDlg::OnCbnSelchangeCombo2)
+
+	ON_CBN_DROPDOWN(IDC_COMBO3, &CupdateZPDUDlg::OnCbnDropdownCombo3)
+	ON_CBN_SELCHANGE(IDC_COMBO3, &CupdateZPDUDlg::OnCbnSelchangeCombo3)
+
+	ON_MESSAGE(WM_UPDATE_EDIT, &CupdateZPDUDlg::OnUpdateEdit)
+	ON_MESSAGE(WM_UPDATE_ERROR_EDIT, &CupdateZPDUDlg::OnUpdateErrorEdit)//WM_UPDATE_ERROR_EDIT
 END_MESSAGE_MAP()
 
 
@@ -1080,11 +1591,11 @@ END_MESSAGE_MAP()
 BOOL CupdateZPDUDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
-
 	// 设置此对话框的图标。  当应用程序主窗口不是对话框时，框架将自动
 	//  执行此操作
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
+	
 	etLocalAdaptersInfo();
 	if (m_ComboBox.GetCount())
 	{
@@ -1103,10 +1614,23 @@ BOOL CupdateZPDUDlg::OnInitDialog()
 	m_boot = 1;
 	m_kernel = 1;
 	m_app = 1;
+	m_batch = 0;
+	gIndex = 0;
+	hideControl();
+
+	CString str("Individual upgrade");
+	m_method.InsertString(0,str);
+	str = "Batch upgrade";
+	m_method.InsertString(1,str);
+	m_method.SetCurSel(0);
 
 	g_Prog = (CProgressCtrl*)GetDlgItem(IDC_PROGRESS1);
 	g_Prog->SetRange(0, 100);
 	g_Prog->SetPos(0);
+
+	g_TotalProg = (CProgressCtrl*)GetDlgItem(IDC_PROGRESS2);
+	g_TotalProg->SetRange(0, 100);
+	g_TotalProg->SetPos(0);
 	gHwnd = this->m_hWnd;
 	return FALSE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -1149,95 +1673,202 @@ HCURSOR CupdateZPDUDlg::OnQueryDragIcon()
 
 unsigned WINAPI MainThread(void* param)
 {
-	int count = 0;
-	BOOL bResult = false;
-	
-	PingReply * reply = new PingReply;
-	do
+	int vecSize = gVecIP.size();
+	for (gIndex = 0; gIndex < vecSize; gIndex++)
 	{
-		CPing objPing;
-		count++;
-		bResult = objPing.Ping(gIp , reply);
-		if (bResult == TRUE)
+		int count = 0;
+		BOOL bResult = false;
+
+		PingReply* reply = new PingReply;
+		do
 		{
-			break;
+			CPing objPing;
+			count++;
+			char buf[255];
+			strncpy_s(buf, CT2A(gVecIP[gIndex]), sizeof(buf));
+			bResult = objPing.Ping(buf, reply);
+			if (bResult == TRUE)
+			{
+				break;
+			}
+			Sleep(1000);
+		} while (count < 10);
+		if (bResult == false)
+		{
+			CString msg;
+			msg.Format(_T("ping error!!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
+			::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+			g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+			if (reply) { delete reply; reply = NULL; }
+			//return -1;
+			::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex+1), (LPARAM)0);
+			continue;
 		}
-		Sleep(1000);
-	} while (count < 10);
-	if(bResult == false)
-	{
-		SetWindowTextA(hText, "ping error!!!");//过程
-		::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
-		g_Prog->SendMessage(PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
 		if (reply) { delete reply; reply = NULL; }
-		return -1;
+		memset(&g_client_info, 0, sizeof(g_client_info));
+
+		WORD	wVersionRequested;
+		WSADATA wsaData;
+		wVersionRequested = MAKEWORD(2, 2);
+		if (WSAStartup(wVersionRequested, &wsaData))
+		{
+			printf("Load WinSock Failed!\n");
+			printf("%s %d exit\n", __func__, __LINE__);
+			CString msg;
+			msg.Format(_T("Load WinSock Failed !!! IP: %s"), gVecIP[gIndex]);
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);//过程
+
+			CString* str = new CString(msg + _T("\r\n"));
+			::PostMessage(gHwnd, WM_UPDATE_ERROR_EDIT, 0, (LPARAM)str);
+
+			//return -1;
+			::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex + 1), (LPARAM)0);
+			continue;
+		}
+
+		client_info* info = &g_client_info;
+		char name[512];
+		memset(name, 0, sizeof(char) * 512);
+		char password[512];
+		memset(password, 0, sizeof(char) * 512);
+		::wsprintfA(name, "%ls", (LPCTSTR)(gName));
+		::wsprintfA(password, "%ls", (LPCTSTR)(gPassword));
+		//char key[2048] = "zpdu";
+		//strcat(key, name);
+		//strcat(key, password);
+
+		unsigned char temp[16];
+		char temp1[32 + 1];
+		compute_pbkdf2((uint8_t*)password, strlen(password), (uint8_t*)password, strlen(password), 1000, 16, temp);
+		print_as_hex_temp(temp, sizeof(temp), temp1);
+		temp1[31] = '\0';
+		sprintf((char*)info->aes_cbc_key, "%s%s", name, temp1);
+		printf("aes cbc key: %s\n", info->aes_cbc_key);
+		//if (Compute_string_md5((unsigned char*)AES_KEY, strlen(AES_KEY), (char*)info->aes_cbc_key) < 0)
+		//{
+		//	printf("%s Compute_string_md5 error\n", __func__);
+		//	return -1;
+		//}
+		//printf("aes cbc key: %s\n", info->aes_cbc_key);
+		aes_init((const void*)info->aes_cbc_key);
+
+
+		get_file(info);
+
+		open_ctrl_sock(info);
+
+		say_hello(info);
+		int ret = -3;
+		while (1)
+		{
+			ret = recv_data_(info);
+			if (ret == 1 || ret == -1) break;
+		}
+
+		WSACleanup();
+		fclose(info->file);
+		memset(info->cipher, 0, sizeof(info->cipher));
+
+		::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex + 1), (LPARAM)0);
 	}
-	if (reply) { delete reply; reply = NULL; }
-	memset(&g_client_info, 0, sizeof(g_client_info));
-	
-	WORD	wVersionRequested;
-	WSADATA wsaData;
-	wVersionRequested = MAKEWORD(2, 2);
-	if (WSAStartup(wVersionRequested, &wsaData))
-	{
-		printf("Load WinSock Failed!\n");
-		printf("%s %d exit\n", __func__, __LINE__);
-		return -1;
-	}
-
-	client_info* info = &g_client_info;
-	char name[512];
-	memset(name, 0, sizeof(char)*512);
-	char password[512];
-	memset(password, 0, sizeof(char) * 512);
-	::wsprintfA(name, "%ls", (LPCTSTR)(gName));
-	::wsprintfA(password, "%ls", (LPCTSTR)(gPassword));
-	//char key[2048] = "zpdu";
-	//strcat(key, name);
-	//strcat(key, password);
-
-	unsigned char temp[16];
-	char temp1[32+1];
-	compute_pbkdf2((uint8_t*)password, strlen(password), (uint8_t*)password, strlen(password), 1000, 16, temp);
-	print_as_hex_temp(temp, sizeof(temp), temp1); 
-	temp1[31] = '\0';
-	sprintf((char *)info->aes_cbc_key, "%s%s", name, temp1);
-	printf("aes cbc key: %s\n", info->aes_cbc_key);
-	//if (Compute_string_md5((unsigned char*)AES_KEY, strlen(AES_KEY), (char*)info->aes_cbc_key) < 0)
-	//{
-	//	printf("%s Compute_string_md5 error\n", __func__);
-	//	return -1;
-	//}
-	//printf("aes cbc key: %s\n", info->aes_cbc_key);
-	aes_init((const void *)info->aes_cbc_key);
-
-
-	get_file(info);
-
-	open_ctrl_sock(info);
-
-	say_hello(info);
-	int ret = -3;
-	while (1)
-	{
-		ret = recv_data_(info);
-		if (ret == 1 || ret == -1) break;
-	}
-	
-	WSACleanup();
-	fclose(info->file);
-	memset(info->cipher, 0, sizeof(info->cipher));
+	::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+	//::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex), (LPARAM)0);
 	return 0;
 }
 
+bool CupdateZPDUDlg::IsValidIPv4(const CString& ip)
+{
+	in_addr addr;
+	return InetPton(AF_INET, ip, &addr) == 1;
+}
 
+bool CupdateZPDUDlg::IsValidIPv6(const CString& ip)
+{
+	in6_addr addr6;
+	return InetPton(AF_INET6, ip, &addr6) == 1;
+}
+
+
+// IP 转整数
+unsigned int IpToInt(const CString& ip)
+{
+	unsigned int a, b, c, d;
+	_stscanf_s(ip, _T("%u.%u.%u.%u"), &a, &b, &c, &d);
+	return (a << 24) | (b << 16) | (c << 8) | d;
+}
+
+// 整数转 IP
+CString IntToIp(unsigned int ipInt)
+{
+	unsigned int a = (ipInt >> 24) & 0xFF;
+	unsigned int b = (ipInt >> 16) & 0xFF;
+	unsigned int c = (ipInt >> 8) & 0xFF;
+	unsigned int d = ipInt & 0xFF;
+
+	CString ip;
+	ip.Format(_T("%u.%u.%u.%u"), a, b, c, d);
+	return ip;
+}
+
+// 生成 IP 范围，排除网络地址和广播地址
+std::vector<CString> GenerateIpRangeExcludeNetBroadcast(
+	const CString& startIp,
+	const CString& endIp,
+	const CString& netmask)
+{
+	std::vector<CString> ipList;
+
+	unsigned int start = IpToInt(startIp);
+	unsigned int end = IpToInt(endIp);
+	unsigned int mask = IpToInt(netmask);
+
+	if (start > end) std::swap(start, end);
+
+	// 网络地址 & 广播地址
+	unsigned int network = start & mask;
+	unsigned int broadcast = network | (~mask);
+
+	for (unsigned int ip = start; ip <= end; ++ip)
+	{
+		if (ip == network || ip == broadcast)
+			continue; // 跳过网络地址和广播地址
+
+		ipList.push_back(IntToIp(ip));
+	}
+
+	return ipList;
+}
 
 void CupdateZPDUDlg::OnBnClickedUpdate()
 {
 	// TODO: 在此添加控件通知处理程序代码
+
+	m_editOK.SetSel(0, -1);   // 全选
+	m_editOK.Clear();
+	m_editError.SetSel(0, -1);   // 全选
+	m_editError.Clear();
+
 	CString tempip;
-	m_ComboBox.GetWindowTextW(tempip);
-	::wsprintfA(gIp, "%ls", (LPCTSTR)tempip);
+	if (m_batch == 0) {
+		m_ComboBox.GetWindowTextW(tempip);
+		::wsprintfA(gStartIp, "%ls", (LPCTSTR)tempip);
+	}else {
+		m_ComboBox.GetWindowTextW(tempip);
+		::wsprintfA(gStartIp, "%ls", (LPCTSTR)tempip);
+		m_endIPAddress.GetWindowTextW(tempip);
+		::wsprintfA(gEndIp, "%ls", (LPCTSTR)tempip);
+		g_TotalProg->SetPos(0);
+		g_TotalProg->SendMessage(PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+	}
 	GetDlgItem(IDC_ACCOUNT)->GetWindowTextW(gName);
 	GetDlgItem(IDC_PASSWORD)->GetWindowTextW(gPassword);//IDC_TIPS
 	GetDlgItem(IDC_TIPS, &hText);
@@ -1248,18 +1879,81 @@ void CupdateZPDUDlg::OnBnClickedUpdate()
 		SetWindowTextA(hText, "Please choose update content !!!");
 		return;
 	}
-	if (strlen(gIp) == 0 || gFilePath.IsEmpty() || gName.IsEmpty() || gPassword.IsEmpty()) {
-		SetWindowTextA(hText , "IP , Filepath , Name, Password is empty !!!");
-	}
-	else 
+	if (m_batch == 0) 
 	{
-		((CButton*)GetDlgItem(IDC_UPDATE))->EnableWindow(false);
-		((CButton*)GetDlgItem(IDC_CHOOSE_BTN))->EnableWindow(false);
-		fun();
-		SetWindowTextA(hText, "Update start !!!");
-		gMainThreads = (HANDLE)_beginthreadex(NULL, 0, MainThread, 0, 0, NULL);
-		
+		if (gFilePath.IsEmpty() || gName.IsEmpty() || gPassword.IsEmpty()) {
+			SetWindowTextA(hText, "Filepath , Name, Password is empty !!!");
+		}
+		else if (strlen(gStartIp) == 0) {
+			SetWindowTextA(hText, "IP address is empty !!!");
+		}
+		else if (!IsValidIPv4(CString(gStartIp) ) ) {
+			SetWindowTextA(hText, "IP address is invalid !!!");
+		}
+		else
+		{
+			gIndex = 0;
+			gVecIP = std::vector<CString>();
+			gVecIP.push_back(CString(gStartIp));
+			
+			((CButton*)GetDlgItem(IDC_UPDATE))->EnableWindow(false);
+			((CButton*)GetDlgItem(IDC_CHOOSE_BTN))->EnableWindow(false);
+			(GetDlgItem(IDC_ACCOUNT)->EnableWindow(false));
+			(GetDlgItem(IDC_PASSWORD)->EnableWindow(false));
+			(GetDlgItem(IDC_COMBO1)->EnableWindow(false));
+			(GetDlgItem(IDC_FILEPATH)->EnableWindow(false));
+			fun();
+			CString msg;
+			msg.Format(_T("Update start !!! num: %d"), gVecIP.size());
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);
+			gMainThreads = (HANDLE)_beginthreadex(NULL, 0, MainThread, 0, 0, NULL);
+
+		}
 	}
+	else
+	{
+		if ( gFilePath.IsEmpty() || gName.IsEmpty() || gPassword.IsEmpty()) 
+		{
+			SetWindowTextA(hText, "Filepath , Name, Password is empty !!!");
+		}
+		else if (strlen(gStartIp) == 0  || strlen(gEndIp) == 0)
+		{
+			SetWindowTextA(hText, "IP address is empty !!!");
+		}
+		else if (!IsValidIPv4(CString(gStartIp))|| !IsValidIPv4(CString(gEndIp))) 
+		{
+			SetWindowTextA(hText, "IP address is invalid !!!");
+		}
+		else
+		{
+			gIndex = 0;
+			
+			gVecIP = std::vector<CString>();
+			gVecIP = GenerateIpRangeExcludeNetBroadcast(CString(gStartIp), CString(gEndIp),CString("255.255.255.0"));
+			//for (const auto& ip : gVecIP)
+			//{
+			//	AfxMessageBox(ip); // 输出结果
+			//}
+			((CButton*)GetDlgItem(IDC_UPDATE))->EnableWindow(false);
+			((CButton*)GetDlgItem(IDC_CHOOSE_BTN))->EnableWindow(false);
+			GetDlgItem(IDC_ACCOUNT)->EnableWindow(false);
+			GetDlgItem(IDC_COMBO3)->EnableWindow(false);
+			GetDlgItem(IDC_PASSWORD)->EnableWindow(false);
+			GetDlgItem(IDC_COMBO1)->EnableWindow(false);
+			GetDlgItem(IDC_FILEPATH)->EnableWindow(false);
+			GetDlgItem(IDCANCEL)->EnableWindow(false);
+			fun();
+			CString msg;
+			msg.Format(_T("Update start !!! num: %d"), gVecIP.size());
+			CT2A pszA(msg);   // 转成 ANSI
+			LPCSTR pStr = pszA;
+			SetWindowTextA(hText, pStr);
+			gMainThreads = (HANDLE)_beginthreadex(NULL, 0, MainThread, 0, 0, NULL);
+
+		}
+	}	
 }
 
 
@@ -1319,8 +2013,16 @@ void CupdateZPDUDlg::OnTimer(UINT_PTR nIDEvent)
 		{
 			KillTimer(1); 
 			count = 0; 
-			GetDlgItem(IDC_UPDATE)->EnableWindow(true);
-			GetDlgItem(IDC_CHOOSE_BTN)->EnableWindow(true);
+			if (gIndex == gVecIP.size()) {
+				GetDlgItem(IDC_UPDATE)->EnableWindow(true);
+				GetDlgItem(IDC_CHOOSE_BTN)->EnableWindow(true);
+				GetDlgItem(IDC_ACCOUNT)->EnableWindow(true);
+				GetDlgItem(IDC_PASSWORD)->EnableWindow(true);
+				GetDlgItem(IDC_COMBO1)->EnableWindow(true);
+				GetDlgItem(IDC_FILEPATH)->EnableWindow(true);
+				GetDlgItem(IDC_COMBO3)->EnableWindow(true);
+				GetDlgItem(IDCANCEL)->EnableWindow(true);
+			}
 			//SetWindowTextA(hText, "Upgrade finish, wait for the PDU to restart.No power off during upgrade!!!");
 		}
 	}
@@ -1334,8 +2036,29 @@ LRESULT CupdateZPDUDlg::OnMyMessage(WPARAM w, LPARAM l)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
 	g_Prog->SetPos(100);
-	GetDlgItem(IDC_UPDATE)->EnableWindow(true);
-	GetDlgItem(IDC_CHOOSE_BTN)->EnableWindow(true);
+	if (gIndex == gVecIP.size()) {
+		GetDlgItem(IDC_UPDATE)->EnableWindow(true);
+		GetDlgItem(IDC_CHOOSE_BTN)->EnableWindow(true);
+		GetDlgItem(IDC_ACCOUNT)->EnableWindow(true);
+		GetDlgItem(IDC_PASSWORD)->EnableWindow(true);
+		GetDlgItem(IDC_COMBO1)->EnableWindow(true);
+		GetDlgItem(IDC_FILEPATH)->EnableWindow(true);
+		GetDlgItem(IDC_COMBO3)->EnableWindow(true);
+		GetDlgItem(IDCANCEL)->EnableWindow(true);
+	}
+	return 0;
+}
+
+
+LRESULT CupdateZPDUDlg::OnMyProgressMessage(WPARAM w, LPARAM l)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	int index = (int)w;
+
+	// 假设进度条范围是 0 ~ 100
+	int pos = (int)((double)index / gVecIP.size() * 100);
+
+	g_TotalProg->SetPos(pos);
 	return 0;
 }
 
@@ -1353,4 +2076,74 @@ void CupdateZPDUDlg::OnCbnSelchangeCombo1()
 	// TODO: 在此添加控件通知处理程序代码
 	m_ComboBox.SetFocus();
 	keybd_event(VK_RIGHT, 0, 0, 0);
+}
+
+
+void CupdateZPDUDlg::OnCbnSelchangeCombo2()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_batch = m_method.GetCurSel();
+	if (m_batch == 0) {//单独升级
+		hideControl();
+	}
+	else {//批量升级
+		showControl();
+	}
+}
+
+void CupdateZPDUDlg::hideControl()
+{
+	GetDlgItem(IDC_STATIC)->SetWindowTextW(_T("IP Address:"));
+	((CWnd*)GetDlgItem(IDC_STATICEND))->ShowWindow(false);
+	((CWnd*)GetDlgItem(IDC_COMBO3))->ShowWindow(false);
+	((CWnd*)GetDlgItem(IDC_STATICSUBPROGRESS2))->ShowWindow(false);
+	((CWnd*)GetDlgItem(IDC_PROGRESS2))->ShowWindow(false);
+}
+
+void CupdateZPDUDlg::showControl()
+{
+	GetDlgItem(IDC_STATIC)->SetWindowTextW(_T("Start IP Address:"));
+
+	((CWnd*)GetDlgItem(IDC_STATICEND))->ShowWindow(true);
+	((CWnd*)GetDlgItem(IDC_COMBO3))->ShowWindow(true);
+	((CWnd*)GetDlgItem(IDC_STATICSUBPROGRESS2))->ShowWindow(true);
+	((CWnd*)GetDlgItem(IDC_PROGRESS2))->ShowWindow(true);
+	etLocalAdaptersInfoEnd();
+	if (m_endIPAddress.GetCount())
+	{
+		m_endIPAddress.SetCurSel(0);
+	}
+}
+
+
+void CupdateZPDUDlg::OnCbnSelchangeCombo3()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_endIPAddress.SetFocus();
+	keybd_event(VK_RIGHT, 0, 0, 0);
+}
+
+void CupdateZPDUDlg::OnCbnDropdownCombo3()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	this->etLocalAdaptersInfoEnd();
+}
+
+LRESULT CupdateZPDUDlg::OnUpdateEdit(WPARAM wParam, LPARAM lParam)
+{
+	CString* pStr = (CString*)lParam;
+	m_editOK.SetSel(0, 0);
+	m_editOK.ReplaceSel(*pStr);
+	delete pStr;                      // 记得释放
+	return 0;
+}
+
+
+LRESULT CupdateZPDUDlg::OnUpdateErrorEdit(WPARAM wParam, LPARAM lParam)
+{
+	CString* pStr = (CString*)lParam;
+	m_editError.SetSel(0, 0);
+	m_editError.ReplaceSel(*pStr);
+	delete pStr;                      // 记得释放
+	return 0;
 }
