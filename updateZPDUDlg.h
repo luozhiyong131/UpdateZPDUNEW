@@ -34,6 +34,7 @@ protected:
 public:
 	afx_msg void OnBnClickedUpdate();
 	afx_msg void OnBnClickedChooseBtn();
+	afx_msg void OnCancel();
 	bool etLocalAdaptersInfo();
 	bool etLocalAdaptersInfoEnd(); 
 	void hideControl();
@@ -66,6 +67,8 @@ public:
 	afx_msg void OnCbnDropdownCombo3();
 	afx_msg LRESULT OnUpdateEdit(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnUpdateErrorEdit(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUpdateFlag(WPARAM wParam, LPARAM lParam);
 	CEdit m_editOK;
 	CEdit m_editError;
+	afx_msg void OnBnClickedStopbtn();
 };

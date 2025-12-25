@@ -22,6 +22,7 @@
 #define WM_MY_PROGESS_MESSAGE   ( WM_USER + 0x102)
 #define WM_UPDATE_EDIT (WM_USER + 0x103)
 #define WM_UPDATE_ERROR_EDIT (WM_USER + 0x105)
+#define WM_TASK_DONE (WM_USER + 0x106)
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -50,6 +51,10 @@ HWND gHwnd;
 int size;
 char* gbuff;
 char* gdata;
+bool gTaskFinished;
+bool gStartClose;
+bool gStart;
+bool gStop;
 
 typedef struct client_info
 {
@@ -1583,6 +1588,8 @@ BEGIN_MESSAGE_MAP(CupdateZPDUDlg, CDialogEx)
 
 	ON_MESSAGE(WM_UPDATE_EDIT, &CupdateZPDUDlg::OnUpdateEdit)
 	ON_MESSAGE(WM_UPDATE_ERROR_EDIT, &CupdateZPDUDlg::OnUpdateErrorEdit)//WM_UPDATE_ERROR_EDIT
+	ON_MESSAGE(WM_TASK_DONE , &CupdateZPDUDlg::OnUpdateFlag)
+	ON_BN_CLICKED(IDC_STOPBTN, &CupdateZPDUDlg::OnBnClickedStopbtn)
 END_MESSAGE_MAP()
 
 
@@ -1616,6 +1623,10 @@ BOOL CupdateZPDUDlg::OnInitDialog()
 	m_app = 1;
 	m_batch = 0;
 	gIndex = 0;
+	gTaskFinished = false;
+	gStartClose = false;
+	gStart = false;
+	gStop = false;
 	hideControl();
 
 	CString str("Individual upgrade");
@@ -1676,12 +1687,15 @@ unsigned WINAPI MainThread(void* param)
 	int vecSize = gVecIP.size();
 	for (gIndex = 0; gIndex < vecSize; gIndex++)
 	{
+		if (gStop) { gIndex = vecSize; break; }
 		int count = 0;
 		BOOL bResult = false;
 
 		PingReply* reply = new PingReply;
 		do
 		{
+			if(gStartClose == true)
+				::PostMessage(gHwnd, WM_TASK_DONE, 0, 0);
 			CPing objPing;
 			count++;
 			char buf[255];
@@ -1781,6 +1795,8 @@ unsigned WINAPI MainThread(void* param)
 		::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex + 1), (LPARAM)0);
 	}
 	::PostMessage(gHwnd, WM_MY_MESSAGE, (WPARAM)0, (LPARAM)0);
+	gStart = false;
+	gStop = false;
 	//::PostMessage(gHwnd, WM_MY_PROGESS_MESSAGE, (WPARAM)(gIndex), (LPARAM)0);
 	return 0;
 }
@@ -1833,12 +1849,13 @@ std::vector<CString> GenerateIpRangeExcludeNetBroadcast(
 
 	if (start > end) std::swap(start, end);
 
-	// 网络地址 & 广播地址
-	unsigned int network = start & mask;
-	unsigned int broadcast = network | (~mask);
+	
 
-	for (unsigned int ip = start; ip <= end; ++ip)
+	for (unsigned int ip = start; ip <= end; ++ip)	
 	{
+		// 网络地址 & 广播地址
+		unsigned int network = ip & mask;
+		unsigned int broadcast = network | (~mask);
 		if (ip == network || ip == broadcast)
 			continue; // 跳过网络地址和广播地址
 
@@ -1851,7 +1868,7 @@ std::vector<CString> GenerateIpRangeExcludeNetBroadcast(
 void CupdateZPDUDlg::OnBnClickedUpdate()
 {
 	// TODO: 在此添加控件通知处理程序代码
-
+	gStart = true;
 	m_editOK.SetSel(0, -1);   // 全选
 	m_editOK.Clear();
 	m_editError.SetSel(0, -1);   // 全选
@@ -1943,7 +1960,7 @@ void CupdateZPDUDlg::OnBnClickedUpdate()
 			GetDlgItem(IDC_PASSWORD)->EnableWindow(false);
 			GetDlgItem(IDC_COMBO1)->EnableWindow(false);
 			GetDlgItem(IDC_FILEPATH)->EnableWindow(false);
-			GetDlgItem(IDCANCEL)->EnableWindow(false);
+			//GetDlgItem(IDCANCEL)->EnableWindow(false);
 			fun();
 			CString msg;
 			msg.Format(_T("Update start !!! num: %d"), gVecIP.size());
@@ -2021,7 +2038,7 @@ void CupdateZPDUDlg::OnTimer(UINT_PTR nIDEvent)
 				GetDlgItem(IDC_COMBO1)->EnableWindow(true);
 				GetDlgItem(IDC_FILEPATH)->EnableWindow(true);
 				GetDlgItem(IDC_COMBO3)->EnableWindow(true);
-				GetDlgItem(IDCANCEL)->EnableWindow(true);
+				//GetDlgItem(IDCANCEL)->EnableWindow(true);
 			}
 			//SetWindowTextA(hText, "Upgrade finish, wait for the PDU to restart.No power off during upgrade!!!");
 		}
@@ -2044,7 +2061,7 @@ LRESULT CupdateZPDUDlg::OnMyMessage(WPARAM w, LPARAM l)
 		GetDlgItem(IDC_COMBO1)->EnableWindow(true);
 		GetDlgItem(IDC_FILEPATH)->EnableWindow(true);
 		GetDlgItem(IDC_COMBO3)->EnableWindow(true);
-		GetDlgItem(IDCANCEL)->EnableWindow(true);
+		//GetDlgItem(IDCANCEL)->EnableWindow(true);
 	}
 	return 0;
 }
@@ -2115,6 +2132,20 @@ void CupdateZPDUDlg::showControl()
 	}
 }
 
+// 重写 OnCancel
+void CupdateZPDUDlg::OnCancel()
+{
+	gStartClose = true;
+	if (gStart) {
+		if (!gTaskFinished)
+		{
+			AfxMessageBox(_T("Upgrading, software will be available shortly."));
+			return; // 不退出
+		}
+	}
+
+	CDialogEx::OnCancel(); // 正常退出
+}
 
 void CupdateZPDUDlg::OnCbnSelchangeCombo3()
 {
@@ -2146,4 +2177,20 @@ LRESULT CupdateZPDUDlg::OnUpdateErrorEdit(WPARAM wParam, LPARAM lParam)
 	m_editError.ReplaceSel(*pStr);
 	delete pStr;                      // 记得释放
 	return 0;
+}
+
+LRESULT CupdateZPDUDlg::OnUpdateFlag(WPARAM wParam, LPARAM lParam)
+{
+	gTaskFinished = true;
+	CDialog::OnCancel();
+	return 0;
+}
+
+void CupdateZPDUDlg::OnBnClickedStopbtn()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	gStop = true;
+	
+	AfxMessageBox(_T("Upgrading, software will stop shortly."));
+	return; // 不退出
 }
